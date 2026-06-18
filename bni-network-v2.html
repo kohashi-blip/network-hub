@@ -1141,42 +1141,38 @@ function getBinId(){ return JSONBIN_BIN_ID; }
 function setBinId(id){ localStorage.setItem(JSONBIN_BIN_KEY, id); }
 
 async function load(){
-  // localStorageにデータがあれば即表示
+  // localStorageのデータを常に読み込んで即表示
   try{
     const local = localStorage.getItem(STORAGE_KEY);
     if(local){
       const parsed = JSON.parse(local);
-      if(parsed.persons && parsed.persons.length > 0){
+      if(parsed && parsed.communities){
         state = parsed;
-        showDashboard();
-        // バックグラウンドでクラウドと同期
-        syncFromCloud(false);
-        return;
       }
     }
-  }catch(e){}
+  }catch(e){ console.warn('local load error',e); }
 
-  // データがない場合はクラウドから取得して表示
-  showSyncStatus('☁ データ読み込み中…', 'var(--accent)');
-  await syncFromCloud(true);
+  // まず画面を表示
+  showDashboard();
+
+  // バックグラウンドでクラウドと同期
+  syncFromCloud();
 }
 
-async function syncFromCloud(andShow){
+async function syncFromCloud(){
   try{
     const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`,{
       headers:{'X-Master-Key':JSONBIN_KEY}
     });
     if(res.ok){
       const json = await res.json();
-      if(json.record && json.record.persons && json.record.persons.length > 0){
+      if(json.record && json.record.communities){
         state = json.record;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        if(andShow){ showSyncStatus('✓ データを読み込みました'); showDashboard(); }
-        return;
+        showDashboard();
       }
     }
   }catch(e){ console.warn('cloud sync failed',e); }
-  if(andShow){ showSyncStatus('⚠ オフラインで動作中','var(--gold)'); showDashboard(); }
 }
 
 async function createBin(){
