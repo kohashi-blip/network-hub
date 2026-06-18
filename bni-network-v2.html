@@ -2590,7 +2590,63 @@ function closeSidebar(){
 }
 
 /* ══ INIT ══ */
-load(); // 非同期：内部でshowDashboard()を呼ぶ
+load();
+
+// JS でモバイル対応を強制適用
+function applyMobileLayout(){
+  const isMob = window.innerWidth <= 700;
+  const sidebar = document.getElementById('sidebar');
+  const main = document.getElementById('main');
+  const hamburger = document.getElementById('hamburger');
+
+  if(isMob){
+    // モバイル：サイドバーを非表示、mainを全幅
+    if(!sidebar.classList.contains('open')){
+      sidebar.style.display = 'none';
+    }
+    main.style.marginLeft = '0';
+    main.style.width = '100%';
+    hamburger.style.display = 'flex';
+  } else {
+    // PC：サイドバーを常時表示
+    sidebar.style.display = 'flex';
+    sidebar.style.width = '220px';
+    main.style.marginLeft = '220px';
+    main.style.width = 'calc(100% - 220px)';
+    hamburger.style.display = 'none';
+  }
+}
+
+// toggleSidebarをモバイル対応に上書き
+toggleSidebar = function(){
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  const hb = document.getElementById('hamburger');
+  if(sb.classList.contains('open')){
+    sb.classList.remove('open');
+    sb.style.display = 'none';
+    ov.classList.remove('open');
+    hb.classList.remove('open');
+  } else {
+    sb.classList.add('open');
+    sb.style.display = 'flex';
+    ov.classList.add('open');
+    hb.classList.add('open');
+  }
+};
+
+closeSidebar = function(){
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  const hb = document.getElementById('hamburger');
+  sb.classList.remove('open');
+  sb.style.display = window.innerWidth <= 700 ? 'none' : 'flex';
+  ov.classList.remove('open');
+  hb.classList.remove('open');
+};
+
+applyMobileLayout();
+window.addEventListener('resize', applyMobileLayout);
 </script>
 </body>
 </html>
