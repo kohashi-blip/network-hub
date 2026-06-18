@@ -27,12 +27,12 @@
   --danger: #e05252;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;overflow:hidden;max-width:100vw}
+html,body{height:100%;overflow:hidden;max-width:100%;width:100%}
 body{
   font-family:'Noto Sans JP',sans-serif;
   background:var(--bg);
   color:var(--text);
-  display:flex;flex-direction:column;
+  display:flex;flex-direction:row;
 }
 
 /* ── noise overlay ── */
@@ -129,6 +129,7 @@ body::after{
   margin-left:220px;
   flex:1;display:flex;flex-direction:column;
   height:100vh;overflow:hidden;
+  width:calc(100% - 220px);
 }
 
 /* ── top bar ── */
@@ -566,8 +567,13 @@ body::after{
   }
   #sidebar-overlay{z-index:505}
   #sidebar-overlay.open{display:block}
-  #main{margin-left:0 !important; width:100vw; max-width:100vw; overflow-x:hidden;}
-  #content{overflow-x:hidden;}
+  #main{
+    margin-left:0 !important;
+    width:100% !important;
+    max-width:100% !important;
+    overflow-x:hidden;
+  }
+  #content{overflow-x:hidden;width:100%;}
 
   /* ── topbar ── */
   #topbar{padding:0 10px 0 58px;height:52px}
