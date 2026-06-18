@@ -1109,7 +1109,11 @@ body::after{
    STATE & STORAGE
 ═══════════════════════════════════════════════ */
 const STORAGE_KEY = 'networkhub_v2';
+const JSONBIN_KEY = '$2a$10$8SFV7/d9pQQyMsMalizmOeAs1.n5xVE.IdQAdrAuH6jsKOWuFtIe6';
+const JSONBIN_BIN_ID = '6a33b6f2f5f4af5e290788b1'; // 固定BIN ID
+const JSONBIN_BIN_KEY = 'jsonbin_bin_id';
 let state = { communities:[], persons:[], nextId:1 };
+let isSyncing = false;
 
 const PALETTE = [
   '#4f8ef7','#00d4aa','#f5a623','#e05252',
@@ -1117,35 +1121,107 @@ const PALETTE = [
   '#fbbf24','#38bdf8'
 ];
 
-function load(){
-  try{
-    const s = localStorage.getItem(STORAGE_KEY);
-    if(s){ state = JSON.parse(s); return; }
-  }catch(e){}
-  // sample data
-  state.communities = [
-    {id:'c1', name:'BNI', color:'#4f8ef7'},
-    {id:'c2', name:'異業種交流会', color:'#00d4aa'},
-    {id:'c3', name:'個人的な繋がり', color:'#f5a623'},
-  ];
-  state.persons = [
-    {id:1,name:'山田 建設',role:'工務店',commId:'c1',parentId:null,sales:350,kp:'gold'},
-    {id:2,name:'佐藤 設計',role:'建築設計士',commId:'c1',parentId:null,sales:280,kp:'silver'},
-    {id:3,name:'田中 不動産',role:'不動産仲介',commId:'c1',parentId:1,sales:180,kp:'bronze'},
-    {id:4,name:'鈴木 商事',role:'建材メーカー',commId:'c1',parentId:1,sales:90,kp:''},
-    {id:5,name:'高橋 リフォーム',role:'リフォーム業',commId:'c1',parentId:2,sales:210,kp:'silver'},
-    {id:6,name:'伊藤 FP',role:'ファイナンシャルP',commId:'c1',parentId:3,sales:60,kp:''},
-    {id:11,name:'中川 弁護士',role:'法律事務所',commId:'c2',parentId:null,sales:420,kp:'gold'},
-    {id:12,name:'福田 会計士',role:'税理士',commId:'c2',parentId:null,sales:190,kp:'silver'},
-    {id:13,name:'岡田 印刷',role:'印刷会社',commId:'c2',parentId:11,sales:80,kp:''},
-    {id:14,name:'松本 IT',role:'WEB制作',commId:'c2',parentId:11,sales:130,kp:'bronze'},
-    {id:21,name:'西村 商店',role:'小売業',commId:'c3',parentId:null,sales:95,kp:''},
-    {id:22,name:'林 建築',role:'一級建築士',commId:'c3',parentId:null,sales:310,kp:'gold'},
-  ];
-  state.nextId = 30;
-  save();
+/* ── 保存ステータス表示 ── */
+function showSyncStatus(msg, color='var(--accent2)'){
+  let el = document.getElementById('sync-status');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'sync-status';
+    el.style.cssText = 'position:fixed;bottom:72px;left:50%;transform:translateX(-50%);padding:6px 16px;border-radius:20px;font-size:12px;z-index:9999;opacity:1;transition:opacity .5s;background:var(--surface2);border:1px solid var(--border);white-space:nowrap';
+    document.body.appendChild(el);
+  }
+  el.style.color = color;
+  el.style.opacity = '1';
+  el.textContent = msg;
+  clearTimeout(el._timer);
+  el._timer = setTimeout(()=>{ el.style.opacity='0'; }, 2500);
 }
-function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+function getBinId(){ return JSONBIN_BIN_ID; }
+function setBinId(id){ localStorage.setItem(JSONBIN_BIN_KEY, id); }
+
+async function load(){
+  // localStorageにデータがあれば即表示
+  try{
+    const local = localStorage.getItem(STORAGE_KEY);
+    if(local){
+      const parsed = JSON.parse(local);
+      if(parsed.persons && parsed.persons.length > 0){
+        state = parsed;
+        showDashboard();
+        // バックグラウンドでクラウドと同期
+        syncFromCloud(false);
+        return;
+      }
+    }
+  }catch(e){}
+
+  // データがない場合はクラウドから取得して表示
+  showSyncStatus('☁ データ読み込み中…', 'var(--accent)');
+  await syncFromCloud(true);
+}
+
+async function syncFromCloud(andShow){
+  try{
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`,{
+      headers:{'X-Master-Key':JSONBIN_KEY}
+    });
+    if(res.ok){
+      const json = await res.json();
+      if(json.record && json.record.persons && json.record.persons.length > 0){
+        state = json.record;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        if(andShow){ showSyncStatus('✓ データを読み込みました'); showDashboard(); }
+        return;
+      }
+    }
+  }catch(e){ console.warn('cloud sync failed',e); }
+  if(andShow){ showSyncStatus('⚠ オフラインで動作中','var(--gold)'); showDashboard(); }
+}
+
+async function createBin(){
+  try{
+    const res = await fetch('https://api.jsonbin.io/v3/b',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Master-Key':JSONBIN_KEY,
+        'X-Bin-Name':'network-hub-data',
+        'X-Bin-Private':'true'
+      },
+      body: JSON.stringify(state)
+    });
+    if(res.ok){
+      const json = await res.json();
+      setBinId(json.metadata.id);
+      showSyncStatus('✓ クラウド接続完了');
+    }
+  }catch(e){ console.warn('createBin failed',e); }
+}
+
+async function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if(isSyncing) return;
+  const binId = getBinId();
+  if(!binId){ await createBin(); return; }
+  isSyncing = true;
+  showSyncStatus('☁ 保存中…', 'var(--accent)');
+  try{
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`,{
+      method:'PUT',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Master-Key':JSONBIN_KEY
+      },
+      body: JSON.stringify(state)
+    });
+    if(res.ok) showSyncStatus('✓ 保存しました');
+    else showSyncStatus('⚠ 保存失敗', 'var(--danger)');
+  }catch(e){
+    showSyncStatus('⚠ オフライン（ローカル保存済）', 'var(--gold)');
+  }
+  isSyncing = false;
+}
 function comm(id){ return state.communities.find(c=>c.id===id); }
 function person(id){ return state.persons.find(p=>p.id===id); }
 
@@ -2496,8 +2572,7 @@ function closeSidebar(){
 }
 
 /* ══ INIT ══ */
-load();
-showDashboard();
+load(); // 非同期：内部でshowDashboard()を呼ぶ
 </script>
 </body>
 </html>
