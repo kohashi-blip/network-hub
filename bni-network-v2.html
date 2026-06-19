@@ -533,7 +533,7 @@ body::after{
 #hamburger:hover{border-color:var(--accent)}
 #hamburger span{
   display:block;width:18px;height:2px;
-  background:var(--text);border-radius:2px;
+  background:#fff;border-radius:2px;
   transition:all .3s;transform-origin:center;
 }
 #hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
@@ -2592,32 +2592,38 @@ function closeSidebar(){
 /* ══ INIT ══ */
 load();
 
-// JS でモバイル対応を強制適用
 function applyMobileLayout(){
   const isMob = window.innerWidth <= 700;
   const sidebar = document.getElementById('sidebar');
   const main = document.getElementById('main');
   const hamburger = document.getElementById('hamburger');
+  const fab = document.getElementById('mobile-fab');
 
   if(isMob){
-    // モバイル：サイドバーを非表示、mainを全幅
+    // モバイル：サイドバー非表示、main全幅、ハンバーガー表示
     if(!sidebar.classList.contains('open')){
-      sidebar.style.display = 'none';
+      sidebar.style.cssText = 'display:none;position:fixed;left:0;top:0;bottom:0;width:80vw;max-width:300px;z-index:510;flex-direction:column;background:var(--surface);border-right:1px solid var(--border);';
     }
     main.style.marginLeft = '0';
     main.style.width = '100%';
-    hamburger.style.display = 'flex';
+    hamburger.style.cssText = 'display:flex;position:fixed;top:10px;left:10px;z-index:600;width:40px;height:40px;border-radius:8px;background:var(--accent);border:none;cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:5px;box-shadow:0 2px 8px rgba(0,0,0,.4);';
+    // 3本線を確実に表示
+    const hbSpans = hamburger.querySelectorAll('span');
+    hbSpans.forEach(s=>{ s.style.cssText='display:block;width:18px;height:2px;background:#fff;border-radius:2px;'; });
+    main.style.paddingLeft = '0';
+    document.getElementById('topbar').style.paddingLeft = '60px';
+    if(fab) fab.style.display = 'none';
   } else {
-    // PC：サイドバーを常時表示
-    sidebar.style.display = 'flex';
-    sidebar.style.width = '220px';
+    // PC：サイドバー常時表示
+    sidebar.style.cssText = 'display:flex;position:fixed;left:0;top:0;bottom:0;width:220px;background:var(--surface);border-right:1px solid var(--border);flex-direction:column;z-index:100;';
     main.style.marginLeft = '220px';
     main.style.width = 'calc(100% - 220px)';
-    hamburger.style.display = 'none';
+    hamburger.style.cssText = 'display:none;';
+    document.getElementById('topbar').style.paddingLeft = '28px';
+    if(fab) fab.style.display = 'none';
   }
 }
 
-// toggleSidebarをモバイル対応に上書き
 toggleSidebar = function(){
   const sb = document.getElementById('sidebar');
   const ov = document.getElementById('sidebar-overlay');
@@ -2629,7 +2635,10 @@ toggleSidebar = function(){
     hb.classList.remove('open');
   } else {
     sb.classList.add('open');
-    sb.style.display = 'flex';
+    sb.style.cssText = 'display:flex;position:fixed;left:0;top:0;bottom:0;width:80vw;max-width:300px;z-index:510;flex-direction:column;background:var(--surface);border-right:1px solid var(--border);box-shadow:4px 0 32px rgba(0,0,0,.7);';
+    // ロゴをハンバーガーと同じ高さに横並び（縦2行テキスト）
+    const logo = sb.querySelector('.sidebar-logo');
+    if(logo) logo.style.cssText = 'padding-left:56px;padding-right:16px;height:60px;display:flex;flex-direction:column;justify-content:center;border-bottom:1px solid var(--border);flex-shrink:0;';
     ov.classList.add('open');
     hb.classList.add('open');
   }
@@ -2640,13 +2649,15 @@ closeSidebar = function(){
   const ov = document.getElementById('sidebar-overlay');
   const hb = document.getElementById('hamburger');
   sb.classList.remove('open');
-  sb.style.display = window.innerWidth <= 700 ? 'none' : 'flex';
+  if(window.innerWidth <= 700) sb.style.display = 'none';
+  const logo = sb.querySelector('.sidebar-logo');
+  if(logo) logo.style.cssText = '';
   ov.classList.remove('open');
   hb.classList.remove('open');
 };
 
 applyMobileLayout();
-window.addEventListener('resize', applyMobileLayout);
+window.addEventListener('resize', ()=>{ closeSidebar(); applyMobileLayout(); });
 </script>
 </body>
 </html>
