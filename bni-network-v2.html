@@ -169,12 +169,12 @@ body::after{
 #page-dashboard{padding:28px}
 
 .dash-kpi-row{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
-  margin-bottom:28px;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+  margin-bottom:0;padding:12px 16px;
 }
 .kpi-card{
   background:var(--surface);border:1px solid var(--border);
-  border-radius:10px;padding:18px 22px;
+  border-radius:10px;padding:14px 12px;min-width:0;
 }
 .kpi-label{font-size:11px;color:var(--text-muted);letter-spacing:.1em;margin-bottom:8px}
 .kpi-val{font-size:30px;font-weight:700;color:var(--accent2);line-height:1}
@@ -189,7 +189,8 @@ body::after{
 
 .comm-cards{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr));
-  gap:14px;margin-bottom:32px;
+  gap:12px;margin-bottom:16px;
+  padding:0 16px 16px;
 }
 .comm-card{
   background:var(--surface);border:1px solid var(--border);
@@ -584,11 +585,12 @@ body::after{
   #page-dashboard,#page-people,#page-search{ padding:12px; overflow-x:hidden; }
 
   /* ── ダッシュボード ── */
-  .dash-kpi-row{grid-template-columns:1fr 1fr}
-  .kpi-val{font-size:22px}
-  .comm-cards{grid-template-columns:1fr; gap:10px}
-  .comm-card{width:100%;box-sizing:border-box}
-  .cc-stat-val{font-size:18px}
+  .dash-kpi-row{grid-template-columns:1fr 1fr 1fr;gap:6px;padding:10px}
+  .kpi-val{font-size:16px}
+  .kpi-label{font-size:9px}
+  .kpi-sub{font-size:9px}
+  .comm-cards{grid-template-columns:1fr;gap:8px;padding:0 10px 10px}
+  .comm-card{padding:14px}
 
   /* ── ランキング ── */
   .ranking-grid{grid-template-columns:1fr}
@@ -744,6 +746,17 @@ body::after{
 
 /* FABはデスクトップで非表示 */
 #mobile-fab{display:none}
+
+/* year sales */
+.sales-entry{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 10px;background:var(--surface2);
+  border-radius:6px;margin-bottom:6px;
+  border:1px solid var(--border);
+}
+.sales-entry-year{font-size:12px;color:var(--text-muted);width:50px;flex-shrink:0}
+.sales-entry-amt{flex:1;font-size:14px;font-weight:600;color:var(--accent2)}
+.sales-entry-del{background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;padding:0 4px;line-height:1}
 </style>
 </head>
 <body>
@@ -759,7 +772,7 @@ body::after{
 
 <!-- ══════ SIDEBAR ══════ -->
 <div id="sidebar">
-  <div class="sidebar-logo">
+  <div class="sidebar-logo" onclick="closeSidebar();setTimeout(()=>showDashboard(),200)" style="cursor:pointer">
     <div class="wordmark">Network <em>Hub</em></div>
     <div class="tagline">人脈・紹介管理システム</div>
   </div>
@@ -775,7 +788,7 @@ body::after{
   </div>
   <div class="sidebar-section-label">コミュニティ</div>
   <!-- people list link -->
-  <div id="sidebar-people-item" class="comm-item" onclick="showPeopleList();closeSidebar()" style="margin:0 10px 6px">
+  <div id="sidebar-people-item" class="comm-item" onclick="closeSidebar();setTimeout(()=>showPeopleList(),200)" style="margin:0 10px 6px">
     <div style="width:8px;height:8px;border-radius:2px;background:var(--text-muted);flex-shrink:0"></div>
     <span class="comm-name">人物一覧</span>
     <span class="comm-count" id="sidebar-people-count"></span>
@@ -822,8 +835,17 @@ body::after{
 
     <!-- DASHBOARD -->
     <div id="page-dashboard">
+      <div style="padding:16px 16px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--text-muted)">表示年度：</span>
+        <select id="year-filter" onchange="onYearFilterChange()"
+          style="padding:7px 12px;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;max-width:160px">
+          <option value="all">すべての年</option>
+        </select>
+      </div>
       <div class="dash-kpi-row" id="kpi-row"></div>
-      <div class="section-title">コミュニティ比較</div>
+      <div style="padding:0 16px">
+        <div class="section-title">コミュニティ比較</div>
+      </div>
       <div class="comm-cards" id="comm-cards"></div>
     </div>
 
@@ -977,10 +999,6 @@ body::after{
         <label>会社名</label>
         <input type="text" id="ap-role" placeholder="例：山田建設株式会社">
       </div>
-      <div class="form-group">
-        <label>売上貢献額（万円）</label>
-        <input type="number" id="ap-sales" min="0" placeholder="0">
-      </div>
     </div>
     <div class="form-group">
       <label>コミュニティ</label>
@@ -1025,9 +1043,15 @@ body::after{
         <label>会社名</label>
         <input type="text" id="ep-role">
       </div>
-      <div class="form-group">
-        <label>売上貢献額（万円）</label>
-        <input type="number" id="ep-sales" min="0">
+    </div>
+    <div class="form-group">
+      <label>年別売上（万円）</label>
+      <div id="ep-sales-list" style="margin-bottom:8px"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="ep-sales-year" style="padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;flex:1"></select>
+        <input type="number" id="ep-sales-amount" min="0" placeholder="金額（万円）"
+          style="padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;flex:2">
+        <button class="btn btn-primary" style="padding:8px 14px;font-size:12px" onclick="addSalesEntry()">追加</button>
       </div>
     </div>
     <div class="form-group">
@@ -1243,10 +1267,98 @@ async function save(){
 function comm(id){ return state.communities.find(c=>c.id===id); }
 function person(id){ return state.persons.find(p=>p.id===id); }
 
-function totalSales(id){
-  const p = person(id); if(!p) return 0;
-  return p.sales + state.persons.filter(x=>x.parentId===id).reduce((s,c)=>s+totalSales(c.id),0);
+let currentYear = 'all'; // 'all' or 年数値
+
+/* 年フィルター適用済み売上取得 */
+function getSales(p, year){
+  if(!p) return 0;
+  // 新形式: salesByYear
+  if(p.salesByYear && Array.isArray(p.salesByYear)){
+    if(year === 'all') return p.salesByYear.reduce((s,e)=>s+(e.amount||0), 0);
+    const entry = p.salesByYear.find(e=>e.year==year);
+    return entry ? (entry.amount||0) : 0;
+  }
+  // 旧形式: sales（年フィルターなしで全額返す）
+  return p.sales||0;
 }
+
+function totalSales(id, year){
+  const p = person(id); if(!p) return 0;
+  return getSales(p, year!==undefined?year:currentYear) +
+    state.persons.filter(x=>x.parentId===id).reduce((s,c)=>s+totalSales(c.id, year!==undefined?year:currentYear),0);
+}
+
+/* 全年リスト取得 */
+function getAllYears(){
+  const years = new Set();
+  state.persons.forEach(p=>{
+    if(p.salesByYear) p.salesByYear.forEach(e=>years.add(e.year));
+  });
+  return [...years].sort((a,b)=>b-a);
+}
+
+function updateYearFilter(){
+  const sel = document.getElementById('year-filter');
+  if(!sel) return;
+  const years = getAllYears();
+  const cur = sel.value;
+  sel.innerHTML = '<option value="all">すべての年</option>' +
+    years.map(y=>`<option value="${y}" ${y==cur?'selected':''}>${y}年</option>`).join('');
+  if(cur) sel.value = cur;
+  currentYear = sel.value;
+}
+
+function onYearFilterChange(){
+  currentYear = document.getElementById('year-filter').value;
+  renderKpi();
+  renderCommCards();
+}
+
+/* 年別売上エントリー（編集モーダル用） */
+let editSalesList = []; // [{year, amount}]
+
+function renderSalesList(){
+  const container = document.getElementById('ep-sales-list');
+  if(!container) return;
+  if(!editSalesList.length){
+    container.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:4px 0">まだ売上が登録されていません</div>';
+    return;
+  }
+  const sorted = [...editSalesList].sort((a,b)=>b.year-a.year);
+  container.innerHTML = sorted.map((e,i)=>`
+    <div class="sales-entry">
+      <span class="sales-entry-year">${e.year}年</span>
+      <span class="sales-entry-amt">¥${e.amount.toLocaleString()}万</span>
+      <button class="sales-entry-del" onclick="removeSalesEntry(${e.year})">×</button>
+    </div>`).join('');
+}
+
+function addSalesEntry(){
+  const year = parseInt(document.getElementById('ep-sales-year').value);
+  const amount = parseInt(document.getElementById('ep-sales-amount').value)||0;
+  if(!year || amount<=0){ alert('年と金額を入力してください'); return; }
+  const existing = editSalesList.findIndex(e=>e.year===year);
+  if(existing>=0) editSalesList[existing].amount = amount;
+  else editSalesList.push({year, amount});
+  document.getElementById('ep-sales-amount').value = '';
+  renderSalesList();
+}
+
+function removeSalesEntry(year){
+  editSalesList = editSalesList.filter(e=>e.year!==year);
+  renderSalesList();
+}
+
+function populateSalesYearSelect(){
+  const sel = document.getElementById('ep-sales-year');
+  if(!sel) return;
+  const thisYear = new Date().getFullYear();
+  sel.innerHTML = [...Array(6)].map((_,i)=>{
+    const y = thisYear - i;
+    return `<option value="${y}">${y}年</option>`;
+  }).join('');
+}
+
 function descendants(id){
   return state.persons.filter(x=>x.parentId===id).reduce((s,c)=>s+1+descendants(c.id),0);
 }
@@ -1273,7 +1385,7 @@ function renderSidebar(){
   allEl.className = 'comm-item' + (currentView==='dashboard'?' active':'');
   allEl.innerHTML = `<div class="comm-dot" style="background:linear-gradient(135deg,#4f8ef7,#00d4aa)"></div>
     <span class="comm-name">すべて（比較）</span>`;
-  allEl.onclick = ()=>{ showDashboard(); closeSidebar(); };
+  allEl.onclick = ()=>{ closeSidebar(); setTimeout(()=>showDashboard(), 200); };
   list.appendChild(allEl);
 
   // people list item highlight
@@ -1290,7 +1402,7 @@ function renderSidebar(){
       <span class="comm-count">${count}</span>
       <button class="comm-edit" onclick="openEditCommunity('${c.id}',event)" title="名前を変更">✎</button>
       <button class="comm-del" onclick="deleteCommunity('${c.id}',event)">×</button>`;
-    el.onclick = ()=>{ showCommunity(c.id); closeSidebar(); };
+    el.onclick = ()=>{ closeSidebar(); setTimeout(()=>showCommunity(c.id), 200); };
     list.appendChild(el);
   });
 }
@@ -1317,14 +1429,17 @@ function showDashboard(){
 }
 
 function renderKpi(){
-  const totalSalesAll = state.persons.reduce((s,p)=>s+p.sales,0);
+  updateYearFilter();
+  const yr = currentYear;
+  const totalSalesAll = state.persons.reduce((s,p)=>s+getSales(p,yr), 0);
   const totalPersons = state.persons.length;
   const totalComms = state.communities.length;
+  const yearLabel = yr==='all' ? '全期間' : yr+'年';
   document.getElementById('kpi-row').innerHTML = `
     <div class="kpi-card">
       <div class="kpi-label">TOTAL SALES</div>
       <div class="kpi-val">¥${totalSalesAll.toLocaleString()}<span style="font-size:16px;color:var(--text-sub)">万</span></div>
-      <div class="kpi-sub">全コミュニティ合計</div>
+      <div class="kpi-sub">${yearLabel}・全コミュニティ合計</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">NETWORK SIZE</div>
@@ -1339,8 +1454,9 @@ function renderKpi(){
 }
 
 function renderCommCards(){
+  const yr = currentYear;
   const maxSales = Math.max(1,...state.communities.map(c=>
-    state.persons.filter(p=>p.commId===c.id).reduce((s,p)=>s+p.sales,0)
+    state.persons.filter(p=>p.commId===c.id).reduce((s,p)=>s+getSales(p,yr), 0)
   ));
   const cards = document.getElementById('comm-cards');
   if(!state.communities.length){
@@ -1349,7 +1465,7 @@ function renderCommCards(){
   }
   cards.innerHTML = state.communities.map((c,i)=>{
     const persons = state.persons.filter(p=>p.commId===c.id);
-    const sales = persons.reduce((s,p)=>s+p.sales,0);
+    const sales = persons.reduce((s,p)=>s+getSales(p,yr), 0);
     const pct = Math.round(sales/maxSales*100);
     const kpCount = persons.filter(p=>p.kp).length;
     return `<div class="comm-card" style="--card-color:${c.color};animation-delay:${i*.06}s" onclick="showCommunity('${c.id}')">
@@ -1929,9 +2045,8 @@ function kpSelect(containerId, val, onPick){
 
 function populateCommSelect(selId, defaultVal){
   const sel=document.getElementById(selId);
-  // 空欄オプションを先頭に追加（未選択状態を表現）
   sel.innerHTML=
-    `<option value="">-- コミュニティを選択 --</option>`+
+    `<option value="" ${!defaultVal?'selected':''}>-- コミュニティを選択 --</option>`+
     state.communities.map(c=>
       `<option value="${c.id}" ${c.id===defaultVal?'selected':''}>${c.name}</option>`
     ).join('');
@@ -2076,7 +2191,17 @@ function openEditPerson(id){
   document.getElementById('edit-modal-title').textContent=p.name+' の編集';
   document.getElementById('ep-name').value=p.name;
   document.getElementById('ep-role').value=p.role||'';
-  document.getElementById('ep-sales').value=p.sales||0;
+  // 年別売上
+  if(p.salesByYear && Array.isArray(p.salesByYear)){
+    editSalesList = [...p.salesByYear];
+  } else if(p.sales){
+    const thisYear = new Date().getFullYear();
+    editSalesList = [{year:thisYear, amount:p.sales}];
+  } else {
+    editSalesList = [];
+  }
+  populateSalesYearSelect();
+  renderSalesList();
   // コミュニティ
   populateCommSelect('ep-comm', p.commId);
   // 紹介元
@@ -2111,7 +2236,8 @@ function saveEditPerson(){
   }
   p.name  = document.getElementById('ep-name').value.trim()||p.name;
   p.role  = document.getElementById('ep-role').value.trim();
-  p.sales = parseInt(document.getElementById('ep-sales').value)||0;
+  p.salesByYear = [...editSalesList];
+  p.sales = editSalesList.reduce((s,e)=>s+(e.amount||0), 0);
   p.kp    = editKp;
   p.commId   = newCommId || (newParentVal ? person(parseInt(newParentVal))?.commId||'' : '');
   p.parentId = newParentVal ? parseInt(newParentVal) : null;
