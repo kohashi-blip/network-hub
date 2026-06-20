@@ -699,19 +699,9 @@ body::after{
     max-height:90vh;overflow-y:auto;
   }
 
-  /* ── topbar add button → FAB ── */
-  #topbar-actions{display:none}
-  #mobile-fab{
-    display:flex;
-    position:fixed;bottom:24px;right:20px;z-index:300;
-    width:52px;height:52px;border-radius:50%;
-    background:var(--accent);border:none;
-    color:#fff;font-size:24px;
-    align-items:center;justify-content:center;
-    box-shadow:0 4px 20px rgba(79,142,247,.5);
-    cursor:pointer;transition:all .2s;
-  }
-  #mobile-fab:active{transform:scale(.93)}
+  /* ── topbar actions: スマホでも表示 ── */
+  #topbar-actions .btn{padding:6px 10px;font-size:11px;white-space:nowrap}
+  #mobile-fab{display:none !important}
 
   /* ── 人物一覧 table → カード ── */
   #people-table-wrap{border:none}
@@ -1017,6 +1007,16 @@ body::after{
       </div>
       <input type="hidden" id="ap-parent-id">
       <div id="ap-parent-selected" style="display:none;margin-top:6px;font-size:11px;color:var(--accent2)"></div>
+    </div>
+    <div class="form-group">
+      <label>売上貢献額（任意）</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="ap-sales-year"
+          style="padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;flex:1">
+        </select>
+        <input type="number" id="ap-sales-amount" min="0" placeholder="金額（万円）"
+          style="padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;flex:2">
+      </div>
     </div>
     <div class="form-group">
       <label>キーパーソン</label>
@@ -2064,14 +2064,19 @@ function openAddPerson(commId){
   const defComm = commId || (state.communities[0]?.id||'');
   document.getElementById('ap-name').value='';
   document.getElementById('ap-role').value='';
-  document.getElementById('ap-sales').value='';
   document.getElementById('ap-parent-search').value='';
   document.getElementById('ap-parent-id').value='';
   document.getElementById('ap-parent-selected').style.display='none';
   document.getElementById('ap-parent-drop').style.display='none';
+  document.getElementById('ap-sales-amount').value='';
+  // 今年・昨年の選択肢
+  const thisYear = new Date().getFullYear();
+  document.getElementById('ap-sales-year').innerHTML =
+    `<option value="">年を選択（任意）</option>
+     <option value="${thisYear}">${thisYear}年（今年）</option>
+     <option value="${thisYear-1}">${thisYear-1}年（昨年）</option>`;
   populateCommSelect('ap-comm', defComm);
   document.getElementById('ap-comm').onchange=function(){
-    // コミュニティ変更時は紹介元をリセット
     document.getElementById('ap-parent-search').value='';
     document.getElementById('ap-parent-id').value='';
     document.getElementById('ap-parent-selected').style.display='none';
@@ -2173,9 +2178,15 @@ function savePerson(){
     role:document.getElementById('ap-role').value.trim(),
     commId: commId || (parentVal ? person(parseInt(parentVal))?.commId||'' : ''),
     parentId:parentVal?parseInt(parentVal):null,
-    sales:parseInt(document.getElementById('ap-sales').value)||0,
+    sales:0,
+    salesByYear: (()=>{
+      const yr = parseInt(document.getElementById('ap-sales-year').value);
+      const amt = parseInt(document.getElementById('ap-sales-amount').value)||0;
+      return (yr && amt) ? [{year:yr, amount:amt}] : [];
+    })(),
     kp:addKp,
   };
+  p.sales = p.salesByYear.reduce((s,e)=>s+(e.amount||0),0);
   state.persons.push(p);
   save(); closeModal('modal-add-person');
   if(currentView==='tree') drawTree(currentTreeRootId);
@@ -2592,15 +2603,16 @@ function getChain(id){
 }
 
 function showSearchResult(id){
-  // close dropdown
   document.getElementById('search-dropdown').style.display='none';
   document.getElementById('search-input').value='';
+  closeSidebar();
 
   currentView='search';
   const p = person(id);
   const c = state.communities.find(x=>x.id===p.commId);
 
   hideAllPages();
+  closeSidebar();
   document.getElementById('page-search').style.display='';
   document.getElementById('topbar-title').textContent='人物検索結果';
   document.getElementById('topbar-sub').textContent = p.name;
