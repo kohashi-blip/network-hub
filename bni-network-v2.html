@@ -1463,7 +1463,12 @@ function renderCommCards(){
     cards.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="eicon">🏘️</div><p>コミュニティがまだありません。<br>左サイドバーから追加してください。</p></div>`;
     return;
   }
-  cards.innerHTML = state.communities.map((c,i)=>{
+  const commsSorted = [...state.communities].sort((a,b)=>{
+    const sa = state.persons.filter(p=>p.commId===a.id).reduce((s,p)=>s+getSales(p,yr),0);
+    const sb2 = state.persons.filter(p=>p.commId===b.id).reduce((s,p)=>s+getSales(p,yr),0);
+    return sb2-sa;
+  });
+  cards.innerHTML = commsSorted.map((c,i)=>{
     const persons = state.persons.filter(p=>p.commId===c.id);
     const sales = persons.reduce((s,p)=>s+getSales(p,yr), 0);
     const pct = Math.round(sales/maxSales*100);
@@ -1716,84 +1721,7 @@ function renderIconGrid(commId){ showCommunity(commId); } // 後方互換
 /* 大元の紹介者TOP5:
    コミュニティ内の全人物について、その紹介チェーンの大元（root）を辿り、
    大元ごとに「そのツリーに含まれる全人物の売上合計」を集計してランキング表示 */
-function renderOriginTop5(commId){
-  const c = comm(commId);
-  const label = document.getElementById('origin-top5-label');
-  label.innerHTML = `<span style="color:${c.color}">●</span> ${c.name} — 大元の紹介者 売上貢献 TOP 5`;
 
-  const grid = document.getElementById('origin-top5-grid');
-
-  // このコミュニティの全人物について大元を特定
-  const persons = state.persons.filter(p=>p.commId===commId);
-
-  // 大元ごとの集計: { originId -> { origin, totalSales, memberCount, directReferrals } }
-  const map = {};
-  persons.forEach(p=>{
-    // 大元を辿る
-    let cur = p;
-    while(cur.parentId){
-      const par = person(cur.parentId);
-      if(!par) break;
-      cur = par;
-    }
-    const oid = cur.id;
-    if(!map[oid]){
-      map[oid] = { origin: cur, totalSales: 0, memberCount: 0 };
-    }
-    map[oid].totalSales += p.sales;
-    map[oid].memberCount += 1;
-  });
-
-  const ranked = Object.values(map)
-    .sort((a,b)=>b.totalSales-a.totalSales)
-    .slice(0,5);
-
-  if(!ranked.length){
-    grid.innerHTML=`<div class="empty"><div class="eicon">🌱</div><p>まだ登録がありません</p></div>`;
-    return;
-  }
-
-  const maxSales = ranked[0].totalSales || 1;
-  const rankColors = ['#f5a623','#a0b4cc','#c47a3a','#4f8ef7','#00d4aa'];
-  const rankBg = [
-    {bg:'var(--gold)',color:'#000'},
-    {bg:'var(--silver)',color:'#000'},
-    {bg:'var(--bronze)',color:'#fff'},
-    {bg:'var(--surface3)',color:'var(--text-muted)'},
-    {bg:'var(--surface3)',color:'var(--text-muted)'},
-  ];
-  const kpLabels = {gold:'★金',silver:'★銀',bronze:'★銅'};
-  const kpMap = {gold:'kp-gold',silver:'kp-silver',bronze:'kp-bronze'};
-
-  grid.innerHTML = `<div class="origin-top5-list">${
-    ranked.map((item,i)=>{
-      const p = item.origin;
-      const pct = Math.round(item.totalSales/maxSales*100);
-      const directCount = state.persons.filter(x=>x.parentId===p.id&&x.commId===commId).length;
-      const kpHtml = p.kp
-        ? `<span class="ot-kp-tag ${kpMap[p.kp]}">${kpLabels[p.kp]}</span>`
-        : '';
-      return `<div class="ot-row" style="--ot-color:${rankColors[i]};animation:fadeUp .3s ease ${i*.08}s both"
-               onclick="showTree(${p.id})">
-        <div class="ot-rank" style="background:${rankBg[i].bg};color:${rankBg[i].color}">${i+1}</div>
-        <div class="ot-info">
-          <div class="ot-name">${p.name}</div>
-          <div class="ot-role">${p.role||'—'}</div>
-        </div>
-        <div class="ot-bar-wrap">
-          <div class="ot-bar-header">
-            <span class="ot-sales">¥${item.totalSales.toLocaleString()}万</span>
-            <span class="ot-intro-count">紹介${item.memberCount}名 / 直接${directCount}名</span>
-          </div>
-          <div class="ot-bar-bg">
-            <div class="ot-bar-fill" style="width:${pct}%;background:${rankColors[i]}"></div>
-          </div>
-        </div>
-        ${kpHtml}
-      </div>`;
-    }).join('')
-  }</div>`;
-}
 
 /* ═══════════════════════════════════════════════
    TREE
