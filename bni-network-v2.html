@@ -1078,9 +1078,10 @@ body::after{
       <label>キーパーソン</label>
       <div class="kp-opts" id="ep-kp"></div>
     </div>
-    <div class="modal-actions">
+    <div class="modal-actions" style="flex-wrap:wrap;gap:8px">
       <button class="btn-danger" onclick="deletePerson()">削除</button>
       <button class="btn btn-ghost" onclick="closeModal('modal-edit-person')">キャンセル</button>
+      <button class="btn btn-ghost" style="border-color:var(--accent2);color:var(--accent2)" onclick="addReferredPerson()">＋ この人の紹介者を追加</button>
       <button class="btn btn-primary" onclick="saveEditPerson()">保存</button>
     </div>
   </div>
@@ -2121,6 +2122,19 @@ function savePerson(){
   else if(currentView==='community') renderIconGrid(currentCommId);
   else showDashboard();
   renderKpi();
+}
+
+function addReferredPerson(){
+  const p = person(editPersonId);
+  closeModal('modal-edit-person');
+  openAddPerson(p.commId);
+  setTimeout(()=>{
+    document.getElementById('ap-parent-id').value = p.id;
+    document.getElementById('ap-parent-search').value = p.name;
+    const sel = document.getElementById('ap-parent-selected');
+    sel.textContent = `✓ ${p.name}${p.role?' ('+p.role+')':''}`;
+    sel.style.display = 'block';
+  }, 50);
 }
 
 function openEditPerson(id){
